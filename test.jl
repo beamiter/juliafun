@@ -152,29 +152,37 @@ end
 # ╔═╡ f4041483-1a0e-494f-ab98-2c8538d36fb2
 @bind go Button("Recompute")
 
-# ╔═╡ a50c9d92-42c7-4aa1-b1d9-cab709a192df
-
+# ╔═╡ 59f83436-5ee6-45d0-b5d3-c257a08c39b9
+begin
+	go
+	@show "haha" rand(1:5)
+end
 
 # ╔═╡ 27f4524b-a3fe-464d-943d-48e662abdc1d
 begin
-	go
-	
-	@show x0
-	bicycle = BicycleCar(:parallel_park, x0=x0)
+	function loop(x0::Vector{Float64})
+	# x0 = SA_F64[0, 0, 0, 0, 4, 0]
+	x00 = SVector{length(x0)}(x0)
+		@show "********* "
+		@show x00
+	bicycle = BicycleCar(:parallel_park, x0=x00)
 	solver = ALTROSolver(bicycle...)
 	solve!(solver)
-	# b = benchmark_solve!(solver)
-	# @show b
+	
 	X = states(solver)
 	U = controls(solver)
 	@show size(X)
 	@show size(U)
-	x0 = X[2]
-	# Plots.plot([x[1] for x in X], [x[2] for x in X])
-end
+	@show x0
+	p = Plots.plot([x[1] for x in X], [x[2] for x in X])
+	end
 
-# ╔═╡ 76bb5cfe-e971-42dc-811f-6d07d688c592
-x0 = SA_F64[0, 0, 0, 0, 4, 0]
+	x0 = Vector{Float64}([0, 0, 0, 0, 4, 0])
+	for i in UnitRange(1, 3)
+		loop(x0)
+	end
+	# loop!(x0)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1479,8 +1487,7 @@ version = "0.9.1+5"
 # ╠═082f1847-8f48-4ec4-93ac-538feaad1fd7
 # ╠═218fa413-650f-445c-be83-e65168881f5d
 # ╠═f4041483-1a0e-494f-ab98-2c8538d36fb2
-# ╠═76bb5cfe-e971-42dc-811f-6d07d688c592
+# ╠═59f83436-5ee6-45d0-b5d3-c257a08c39b9
 # ╠═27f4524b-a3fe-464d-943d-48e662abdc1d
-# ╠═a50c9d92-42c7-4aa1-b1d9-cab709a192df
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

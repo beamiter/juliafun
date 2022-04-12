@@ -6,7 +6,6 @@ using TrajectoryOptimization
 const TO = TrajectoryOptimization
 using BenchmarkTools
 using Plots
-using PlotlyJS
 using ForwardDiff, FiniteDiff
 using RobotDynamics
 const RD = RobotDynamics
@@ -76,12 +75,12 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
   xf = SA[13, -1.2, deg2rad(0), 0, 2.0, 0]
 
   # x, y, theta, delta, v, a
-  Q = Diagonal(SA[10, 10, 60, 1, 1, 1])
+  Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
   # jerk, phi
   ρ = 1.0
-  R = ρ * Diagonal(SA[1, 1])
+  R = ρ * Diagonal(SA_F64[1, 1])
   Qf = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
-  obj = LQRObjective(Q * dt, R * dt, Qf, xf, N)
+  obj = LQRObjective(Q, R, Qf, xf, N)
 
   cons = ConstraintList(n, m, N)
   bnd_x_l = [-1, -2.4, Inf, -deg2rad(45), 0.0, -3]
@@ -119,26 +118,51 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
   return prob, opts
 end
 
-function loop()
+function loop_for_gif()
   x0 = SA_F64[0, 0, 0, 0, 4, 0]
+  plt = plot([0, 20, 20, 0, 0], [-1.2, -1.2, 1.2, 1.2, -1.2])
   anim = @animate for i in UnitRange(1, 5)
     @show x0
     bicycle = BicycleCar(:parallel_park, x0=x0)
     solver = ALTROSolver(bicycle...)
     solve!(solver)
-    # b = benchmark_solve!(solver)
-    # @show b
     X = states(solver)
     U = controls(solver)
     @show size(X)
     @show size(U)
     x0 = X[2]
-    Plots.plot([x[1] for x in X], [x[2] for x in X])
+    p = plot(plt, [x[1] for x in X], [x[2] for x in X])
+    display(p)
+    sleep(5)
   end
   gif(anim, "anim_fps15.gif", fps=1)
 end
+function loop_for_display()
+  x0 = SA_F64[0, 0, 0, 0, 4, 0]
+  plt = plot([0, 20, 20, 0, 0], [-1.2, -1.2, 1.2, 1.2, -1.2])
+  his_x = []
+  his_y = []
+  for i in UnitRange(1, 50)
+    @show x0
+    bicycle = BicycleCar(:parallel_park, x0=x0)
+    solver = ALTROSolver(bicycle...)
+    solve!(solver)
+    X = states(solver)
+    U = controls(solver)
+    @show size(X)
+    @show size(U)
+    push!(his_x, x0[1])
+    push!(his_y, x0[2])
+    x0 = X[2]
+    p = plot(plt, [x[1] for x in X], [x[2] for x in X])
+    scatter!(p, his_x, his_y)
+    display(p)
+    sleep(0.5)
+    readline()
+  end
+end
 
-loop()
+loop_for_display()
 
 # pyplot()
 # gr()
