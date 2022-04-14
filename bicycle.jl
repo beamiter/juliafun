@@ -76,7 +76,7 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
     tf = 5.0
     #dt = tf / (N - 1)
 
-    xf = SA[13, -2.1, deg2rad(0), 0, 0.1, 0]
+    xf = SA[13, -2.2, deg2rad(0), 0, 0.1, 0]
 
     # x, y, theta, delta, v, a
     Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
@@ -255,8 +255,9 @@ function loop_for_display()
         @show size(U)
         push!(his_x, x0[1])
         push!(his_y, x0[2])
-        push!(his_x_f, x0[1] + 2.0 * cos(x0[3]))
-        push!(his_y_f, x0[2] + 2.0 * sin(x0[3]))
+        l = 1.0
+        push!(his_x_f, x0[1] + l * cos(x0[3]))
+        push!(his_y_f, x0[2] + l * sin(x0[3]))
         x0 = X[2]
         p = plot(plt, [x[1] for x in X], [x[2] for x in X])
         r = 1.0
