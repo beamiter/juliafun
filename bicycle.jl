@@ -74,9 +74,9 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
         cost_tolerance_intermediate=1e-1)
 
     tf = 5.0
-    dt = tf / (N - 1)
+    #dt = tf / (N - 1)
 
-    xf = SA[13, -1.8, deg2rad(0), 0, 0.1, 0]
+    xf = SA[13, -2.1, deg2rad(0), 0, 0.1, 0]
 
     # x, y, theta, delta, v, a
     Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
@@ -95,39 +95,35 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
     bnd = BoundConstraint(n, m, x_min=bnd_x_l, x_max=bnd_x_u, u_min=bnd_u_l,
         u_max=bnd_u_u)
 
-    p = 3
+    p = 2
     A = zeros(p, m + n)
     A[1, 5] = 1.0
     A[2, 5] = -1.0
-    A[3, 2] = -1.0
     A = SMatrix{p,m + n,Float64}(A)
     b = zeros(p)
     b[1] = 4.0
     b[2] = -0.01
-    b[3] = 1.3
     b = SVector{p,Float64}(b)
     lin = LinearConstraint(n, m, A, b, Inequality())
 
     xc = SA[7]
-    yc = SA[0]
-    r = SA[0.5]
+    yc = SA[0.5]
+    r = SA[1.0]
     cir = CircleConstraint(n, xc, yc, r)
 
     goal = GoalConstraint(xf)
 
     p = 1
-    A = zeros(p)
+    A = zeros(p, 2)
     b = zeros(p)
-    A[1] = -1.0
-    b[1] = 2.0
-    lx = 2.0
-    ly = 2.0
-    off = OffsetLinearConstraint(n, m, A, b, Inequality(), lx, ly)
+    A[2] = -1.0
+    b[1] = 2.4
+    off = OffsetLinearConstraint(n, m, A, b, Inequality(), 1.0)
 
     add_constraint!(cons, bnd, 1:N-1)
     # add_constraint!(cons, goal, N)
     add_constraint!(cons, lin, 2:N)
-    add_constraint!(cons, cir, 1:N)
+    # add_constraint!(cons, cir, 1:N)
     add_constraint!(cons, off, 1:N)
 
     prob = Problem(model, obj, x0, tf, xf=xf, constraints=cons)
@@ -138,87 +134,84 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
     return prob, opts
 end
 
-struct OffsetLinearConstraint{S,P,T} <: StageConstraint
+struct OffsetLinearConstraint{S,P,W,T} <: StageConstraint
     n::Int
     m::Int
-    A::SVector{P,T}
+    A::SizedMatrix{P,W,T,2,Matrix{T}}
     b::SVector{P,T}
     sense::S
-    lx::T
-    ly::T
-    xi::Int
-    yi::Int
-    θi::Int
-    function OffsetLinearConstraint{S,P,T}(n::Int, m::Int, A::StaticVector{P,T},
+    l::Float64
+    inds::SVector{3,Int}
+    function OffsetLinearConstraint(n::Int, m::Int, A::StaticMatrix{P,W,T},
         b::StaticVector{P,T},
         sense::ConstraintSense,
-        lx::T, ly::T, xi=1,
-        yi=2, θi=3) where {S,P,T}
-        @assert length(A) == length(b) "Length of A, b must be equal"
-        new{typeof(sense),P,T}(n, m, A, b, sense, lx, ly, xi, yi, θi)
+        l::Float64, inds=1:3) where {P,W,T}
+        @assert size(A, 1) == length(b) "Length of A, b must be equal"
+        @assert W == 2 "Only support two dimension now"
+        inds = SVector{3}(inds)
+        new{typeof(sense),P,W,T}(n, m, A, b, sense, l, inds)
     end
 end
 
-function OffsetLinearConstraint(n::Int, m::Int, A::AbstractVector, b::AbstractVector,
-    sense::S, lx::Float64, ly::Float64, xi=1, yi=2, θi=3) where {S<:ConstraintSense}
-    @assert length(A) == length(b)
-    p = length(A)
-    T = promote_type(eltype(lx), eltype(ly))
-    A = SVector{p,T}(A)
+function OffsetLinearConstraint(n::Int, m::Int, A::AbstractMatrix, b::AbstractVector,
+    sense::S, l::Float64, inds=1:3) where {S<:ConstraintSense}
+    @assert size(A, 1) == length(b) "Length of A, b must be equal"
+    @assert size(A, 2) == 2 "Currently only support 2 dimensions"
+    p, q = size(A)
+    T = promote_type(eltype(A), eltype(b))
+    A = SizedMatrix{p,q,T}(A)
     b = SVector{p,T}(b)
-    OffsetLinearConstraint{S,p,T}(n, m, A, b, sense, lx, ly, xi, yi, θi)
+    OffsetLinearConstraint(n, m, A, b, sense, l, inds)
 end
 
-Base.copy(con::OffsetLinearConstraint) where {S} =
-    OffsetLinearConstraint(con.n, con.m, copy(con.A), copy(con.b), S(), con.lx,
-        con.ly, con.xi, con.yi, con.θi)
+Base.copy(con::OffsetLinearConstraint) where S =
+    OffsetLinearConstraint(con.n, con.m, copy(con.A), copy(con.b), S(), con.l, con.inds)
 
 @inline TO.sense(con::OffsetLinearConstraint) = con.sense
-@inline RD.output_dim(::OffsetLinearConstraint{<:Any,P}) where {P} = 2 * P
+@inline RD.output_dim(::OffsetLinearConstraint{<:Any,P}) where {P} = P
 @inline RD.state_dim(con::OffsetLinearConstraint) = con.n
 @inline RD.control_dim(con::OffsetLinearConstraint) = con.m
 RD.functioninputs(::OffsetLinearConstraint) = RD.StateOnly()
 
-function RD.evaluate(con::OffsetLinearConstraint, X::RD.DataVector)
+function RD.evaluate(con::OffsetLinearConstraint{S,P}, X::RD.DataVector) where {S,P}
     A = con.A
     b = con.b
-    lx = con.lx
-    ly = con.ly
-    x = X[con.xi]
-    y = X[con.yi]
-    θ = X[con.θi]
-    x0 = x + lx * cos(θ)
-    y0 = y + ly * sin(θ)
-    [A * x0 .- b; A * y0 .- b]
+    l = con.l
+    x, y, θ = X[con.inds]
+    x0 = x + l * cos(θ)
+    y0 = y + l * sin(θ)
+    c = zeros(P)
+    for i in 1:P
+        c[i] = dot(A[i, 1:2], (x0, y0))
+    end
+    c .-= b
 end
 
 function RD.evaluate!(con::OffsetLinearConstraint{<:Any,P}, c, X::RD.DataVector) where {P}
     A = con.A
     b = con.b
-    lx = con.lx
-    ly = con.ly
-    x = X[con.xi]
-    y = X[con.yi]
-    θ = X[con.θi]
-    x0 = x + lx * cos(θ)
-    y0 = y + ly * sin(θ)
-    c .= [A * x0 .- b; A * y0 .- b]
+    l = con.l
+    x, y, θ = X[con.inds]
+    x0 = x + l * cos(θ)
+    y0 = y + l * sin(θ)
+    for i in 1:P
+        c[i] = dot(A[i, 1:2], (x0, y0))
+    end
+    c .-= b
     return nothing
 end
 
 function RD.jacobian!(con::OffsetLinearConstraint{<:Any,P}, ∇c, c, z::RD.AbstractKnotPoint) where {P}
     X = RD.state(z)
     A = con.A
-    lx = con.lx
-    ly = con.ly
-    xi = con.xi
-    yi = con.yi
-    θi = con.θi
+    l = con.l
+    xi, yi, θi = con.inds
     θ = X[θi]
-    ∇c[1:P, xi] .= A
-    ∇c[1:P, θi] .= -A * lx * sin(θ)
-    ∇c[P.+(1:P), yi] .= A
-    ∇c[P.+(1:P), θi] .= A * ly * cos(θ)
+    for i = 1:P
+        ∇c[i, xi] = A[i, 1]
+        ∇c[i, yi] = A[i, 2]
+        ∇c[i, θi] = l * dot(A[i, 1:2], (-sin(θ), cos(θ)))
+    end
     return nothing
 end
 
@@ -245,7 +238,7 @@ function loop_for_display()
     gr()
     x0 = SA_F64[0, 0, 0, 0, 4, 0]
     plt = plot([0, 20], [-2.4, -2.4])
-    plot(plt, [0, 20], [-2.0, -2.0])
+    plot!(plt, [0, 20], [-2.0, -2.0])
     plot!(plt, [0, 20], [2.4, 2.4])
     his_x = []
     his_y = []
@@ -266,9 +259,9 @@ function loop_for_display()
         push!(his_y_f, x0[2] + 2.0 * sin(x0[3]))
         x0 = X[2]
         p = plot(plt, [x[1] for x in X], [x[2] for x in X])
-        r = 0.5
+        r = 1.0
         theta = (-pi:0.1:pi)
-        plot!(p, [r * cos(i) + 7.0 for i in theta], [r * sin(i) for i in theta])
+        plot!(p, [r * cos(i) + 7.0 for i in theta], [r * sin(i) + 0.5 for i in theta])
         r = 1.0
         plot!(p, [r * cos(i) + his_x[end] for i in theta], [r * sin(i) + his_y[end] for i in theta])
         plot!(p, [r * cos(i) + his_x_f[end] for i in theta], [r * sin(i) + his_y_f[end] for i in theta])
@@ -280,4 +273,4 @@ function loop_for_display()
     end
 end
 
-loop_for_display()
+#loop_for_display()
