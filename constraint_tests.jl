@@ -27,6 +27,7 @@ b = @SVector rand(p)
 lin = LinearConstraint(n, m, A, b, Inequality())
 @show RD.evaluate(lin, z)
 @show RD.output_dim(lin)
+@show typeof(lin)
 
 #################################################
 
@@ -41,6 +42,7 @@ c = zeros(3)
 RD.jacobian!(cir, ∇c, c, z)
 @show ∇c
 @show size(∇c)
+@show typeof(cir)
 
 #################################################
 
@@ -57,6 +59,10 @@ RD.evaluate!(off, c, z)
 ∇c = zeros(p, n)
 RD.jacobian!(off, ∇c, c, z)
 @show ∇c
+@show typeof(off)
+if off isa OffsetLinearConstraint
+    println("what the fuck")
+end
 
 #################################################
 
