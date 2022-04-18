@@ -19,10 +19,23 @@ function loop_for_gif()
     gif(anim, "anim_fps15.gif", fps=1)
 end
 
+function ellipse!(x::Float64, y::Float64, a::Float64, b::Float64, θ::Float64, plt::P) where {P}
+    theta = (0.0:0.1:2*pi+0.1)
+    s, c = sincos(θ)
+    xt = t -> cos(t)
+    yt = t -> sin(t)
+    fx = t -> c * a * xt(t) - s * b * yt(t) + x
+    fy = t -> s * a * xt(t) + c * b * yt(t) + y
+    plot!(plt, [fx(i) for i in theta], [fy(i) for i in theta])
+    # X, Y = [a * cos(i) for i in theta], [b * sin(i) for i in theta]
+    # plot!(plt, c .* X .- s .* Y .+ x, s .* X .+ c .* Y .+ y)
+end
+
 function circle!(x::Float64, y::Float64, r::Float64, plt::P) where {P}
     theta = (0.0:0.1:2*pi+0.1)
     plot!(plt, [r * cos(i) + x for i in theta], [r * sin(i) + y for i in theta])
 end
+
 function plot_circle_con!(c::C, plt::P) where {C<:Union{CircleConstraint,OffsetCircleConstraint},P}
     for i in 1:RD.output_dim(c)
         x = c.x[i]
@@ -39,12 +52,12 @@ function loop_for_display()
     plt = plot([0, 20], [-2.4, -2.4])
     plot!(plt, [0, 20], [-2.0, -2.0])
     plot!(plt, [0, 20], [2.4, 2.4])
-    scatter!(plt, [xf[1]], [xf[2]], marker_size=2)
+    scatter!(plt, [xf[1]], [xf[2]], marker_size=2, shape=:star5)
     his_x = []
     his_y = []
     his_x_f = []
     his_y_f = []
-    for _ in UnitRange(1, 40)
+    for i in UnitRange(1, 40)
         @show x0
         bicycle = BicycleCar(:parallel_park, x0=x0, xf=xf)
         solver = ALTROSolver(bicycle...)
@@ -78,8 +91,10 @@ function loop_for_display()
         # circle!(his_x_f[end], his_y_f[end], r, p)
         scatter!(p, his_x, his_y)
         scatter!(p, his_x_f, his_y_f)
+        ellipse!(9.0, 1.0, 3.0, 1.0, deg2rad(30.0), p)
+        ellipse!(8.0, 1.0, 3.0, 1.0, deg2rad(10.0), p)
+        # savefig(p, "pics/$(i)_haha.png")
         display(p)
-        sleep(0.1)
         readline()
         x0 = X[2]
     end
