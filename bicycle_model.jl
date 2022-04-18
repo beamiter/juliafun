@@ -51,7 +51,7 @@ end
 RD.state_dim(::MyBicycleModel) = 6
 RD.control_dim(::MyBicycleModel) = 2
 
-function BicycleCar(scenario=:parallel_park, ; N=51, x0)
+function BicycleCar(scenario=:parallel_park, ; N=51, x0, xf)
     if scenario == :parallel_park
     end
     model = MyBicycleModel(; ref=:cg)
@@ -62,8 +62,6 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
 
     tf = 5.0
     #dt = tf / (N - 1)
-
-    xf = SA[13, -2.2, deg2rad(0), 0, 0.1, 0]
 
     # x, y, theta, delta, v, a
     Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
@@ -98,6 +96,8 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
     r = SA[1.0]
     cir = CircleConstraint(n, xc, yc, r)
 
+    off_cir = OffsetCircleConstraint(n, m, xc, yc, r, 1.0)
+
     goal = GoalConstraint(xf)
 
     p = 1
@@ -105,13 +105,14 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0)
     b = zeros(p)
     A[2] = -1.0
     b[1] = 2.4
-    off = OffsetLinearConstraint(n, m, A, b, Inequality(), 1.0)
+    off_lin = OffsetLinearConstraint(n, m, A, b, Inequality(), 1.0)
 
-    add_constraint!(cons, bnd, 1:N-1)
     # add_constraint!(cons, goal, N)
+    add_constraint!(cons, bnd, 1:N-1)
     add_constraint!(cons, lin, 2:N)
-    # add_constraint!(cons, cir, 1:N)
-    add_constraint!(cons, off, 1:N)
+    add_constraint!(cons, cir, 1:N)
+    add_constraint!(cons, off_lin, 1:N)
+    add_constraint!(cons, off_cir, 1:N)
 
     prob = Problem(model, obj, x0, tf, xf=xf, constraints=cons)
     initial_controls!(prob, SA[0.0, 0.0])
