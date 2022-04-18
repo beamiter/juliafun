@@ -23,12 +23,11 @@ function circle!(x::Float64, y::Float64, r::Float64, plt::P) where {P}
     theta = (0.0:0.1:2*pi+0.1)
     plot!(plt, [r * cos(i) + x for i in theta], [r * sin(i) + y for i in theta])
 end
-function plot_circle_con!(c::C, plt::P) where {C<:CircleConstraint,P}
+function plot_circle_con!(c::C, plt::P) where {C<:Union{CircleConstraint,OffsetCircleConstraint},P}
     for i in 1:RD.output_dim(c)
         x = c.x[i]
         y = c.y[i]
         r = c.radius[i]
-        println(x, ",", y, ",", r)
         circle!(x, y, r, plt)
     end
 end
@@ -36,7 +35,7 @@ end
 function loop_for_display()
     gr()
     x0 = SA_F64[0, 0, 0, 0, 4, 0]
-    xf = SA[13, 0.6, deg2rad(0), 0, 0.1, 0]
+    xf = SA[13, 0.8, deg2rad(0), 0, 0.1, 0]
     plt = plot([0, 20], [-2.4, -2.4])
     plot!(plt, [0, 20], [-2.0, -2.0])
     plot!(plt, [0, 20], [2.4, 2.4])
@@ -45,7 +44,7 @@ function loop_for_display()
     his_y = []
     his_x_f = []
     his_y_f = []
-    for i in UnitRange(1, 40)
+    for _ in UnitRange(1, 40)
         @show x0
         bicycle = BicycleCar(:parallel_park, x0=x0, xf=xf)
         solver = ALTROSolver(bicycle...)
@@ -63,7 +62,8 @@ function loop_for_display()
                 plot_circle_con!(con, p)
             elseif con isa OffsetLinearConstraint
                 l = con.l
-            else
+            elseif con isa OffsetCircleConstraint
+                plot_circle_con!(con, p)
             end
         end
         @show size(X)

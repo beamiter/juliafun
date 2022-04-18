@@ -96,7 +96,8 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0, xf)
     r = SA[1.0]
     cir = CircleConstraint(n, xc, yc, r)
 
-    off_cir = OffsetCircleConstraint(n, m, xc, yc, r, 1.0)
+    l = 2.0
+    off_cir = OffsetCircleConstraint(n, m, xc, yc, r, l)
 
     goal = GoalConstraint(xf)
 
@@ -105,7 +106,7 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0, xf)
     b = zeros(p)
     A[2] = -1.0
     b[1] = 2.4
-    off_lin = OffsetLinearConstraint(n, m, A, b, Inequality(), 1.0)
+    off_lin = OffsetLinearConstraint(n, m, A, b, Inequality(), l)
 
     # add_constraint!(cons, goal, N)
     add_constraint!(cons, bnd, 1:N-1)
