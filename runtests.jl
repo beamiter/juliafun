@@ -1,14 +1,4 @@
-using RobotZoo, RobotDynamics
-# const RD = RobotDynamics
-
-using TrajectoryOptimization
-# const TO = TrajectoryOptimization
-
-using Altro
 using Test
-
-using StaticArrays, LinearAlgebra
-
 import RobotZoo.Cartpole
 
 include("bicycle.jl")
@@ -61,9 +51,9 @@ RD.jacobian!(off, ∇c, c, z)
 @show ∇c
 @show typeof(off)
 if off isa OffsetLinearConstraint
-    println("what the fuck")
 end
 
 #################################################
+println("************************************")
 
 loop_for_display()
