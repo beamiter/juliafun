@@ -91,12 +91,15 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0, xf)
   b = SVector{p,Float64}(b)
   lin = LinearConstraint(n, m, A, b, Inequality())
 
-  xc = SA[8.0]
+  xc = SA[6.0]
   yc = SA[1.0]
   a = SA[3.0]
-  b = SA[1.5]
-  θ = SA[deg2rad(30.0)]
+  b = SA[1.0]
+  θ = SA[deg2rad(150.0)]
   elli = EllipseConstraint(n, m, xc, yc, a, b, θ)
+
+  l = 2.0
+  off_elli = OffsetEllipseConstraint(n, m, xc, yc, a, b, θ, l)
 
   xc = SA[7]
   yc = SA[0.5]
@@ -121,7 +124,8 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0, xf)
   # add_constraint!(cons, cir, 1:N)
   # add_constraint!(cons, off_lin, 1:N)
   # add_constraint!(cons, off_cir, 1:N)
-  add_constraint!(cons, elli, 1:N)
+  # add_constraint!(cons, elli, 1:N)
+  add_constraint!(cons, off_elli, 1:N)
 
   prob = Problem(model, obj, x0, tf, xf=xf, constraints=cons)
   initial_controls!(prob, SA[0.0, 0.0])

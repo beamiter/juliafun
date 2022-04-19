@@ -87,6 +87,25 @@ include("bicycle.jl")
   @show ∇c
   @show typeof(elli)
 
+  #################################################
+  p = 1
+  xc = [9]
+  yc = [1]
+  a = [3]
+  b = [1]
+  θ = [deg2rad(30.0)]
+  l = 2.0
+  off_elli = OffsetEllipseConstraint(n, m, xc, yc, a, b, θ, l)
+  @show RD.evaluate(off_elli, z)
+  @show RD.output_dim(off_elli)
+  c = zeros(RD.output_dim(off_elli))
+  RD.evaluate!(off_elli, c, z)
+  @test c ≈ RD.evaluate(off_elli, z)
+  ∇c = zeros(p, n)
+  RD.jacobian!(off_elli, ∇c, c, z)
+  @show ∇c
+  @show typeof(off_elli)
+
 end
 
 loop_for_display()

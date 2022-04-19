@@ -45,13 +45,13 @@ function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, p
   # plot!(plt, c .* X .- s .* Y .+ x, s .* X .+ c .* Y .+ y)
 end
 
-function plot_ellipse_con!(c::C, plt::P) where {C<:EllipseConstraint,P}
+function plot_ellipse_con!(c::C, plt::P) where {C<:Union{EllipseConstraint,OffsetEllipseConstraint},P}
   for i in 1:RD.output_dim(c)
     h = c.x[i]
     k = c.y[i]
     a = c.a[i]
     b = c.b[i]
-    ψ = c.θ[i]
+    ψ = c.ψ[i]
     ellipse!(h, k, a, b, ψ, plt)
   end
 end
@@ -103,6 +103,8 @@ function loop_for_display()
       elseif con isa OffsetCircleConstraint
         plot_circle_con!(con, p)
       elseif con isa EllipseConstraint
+        plot_ellipse_con!(con, p)
+      elseif con isa OffsetEllipseConstraint
         plot_ellipse_con!(con, p)
       end
     end
