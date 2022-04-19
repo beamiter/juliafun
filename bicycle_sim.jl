@@ -2,7 +2,7 @@
 function loop_for_gif()
   x0 = SA_F64[0, 0, 0, 0, 4, 0]
   plt = plot([0, 20, 20, 0, 0], 2.0 * [-1.2, -1.2, 1.2, 1.2, -1.2])
-  anim = @animate for i in UnitRange(1, 40)
+  anim = @animate for _ in UnitRange(1, 40)
     @show x0
     bicycle = BicycleCar(:parallel_park, x0=x0)
     solver = ALTROSolver(bicycle...)
@@ -45,6 +45,17 @@ function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, p
   # plot!(plt, c .* X .- s .* Y .+ x, s .* X .+ c .* Y .+ y)
 end
 
+function plot_ellipse_con!(c::C, plt::P) where {C<:EllipseConstraint,P}
+  for i in 1:RD.output_dim(c)
+    h = c.x[i]
+    k = c.y[i]
+    a = c.a[i]
+    b = c.b[i]
+    ψ = c.θ[i]
+    ellipse!(h, k, a, b, ψ, plt)
+  end
+end
+
 function circle!(x::Float64, y::Float64, r::Float64, plt::P) where {P}
   theta = (0.0:0.1:2*pi+0.1)
   plot!(plt, [r * cos(i) + x for i in theta], [r * sin(i) + y for i in theta])
@@ -62,7 +73,7 @@ end
 function loop_for_display()
   gr()
   x0 = SA_F64[0, 0, 0, 0, 4, 0]
-  xf = SA[13, 0.8, deg2rad(0), 0, 0.1, 0]
+  xf = SA[13, 0.3, deg2rad(0), 0, 0.1, 0]
   plt = plot([0, 20], [-2.4, -2.4], aspect_ratio=:equal)
   plot!(plt, [0, 20], [-2.0, -2.0])
   plot!(plt, [0, 20], [2.4, 2.4])
@@ -80,7 +91,7 @@ function loop_for_display()
     U = controls(solver)
     p = plot(plt, [x[1] for x in X], [x[2] for x in X])
     cons = get_constraints(bicycle[1])
-    l = 1.0
+    l = 2.0
     for con in cons
       @show typeof(con)
       if con isa LinearConstraint
@@ -91,6 +102,8 @@ function loop_for_display()
         l = con.l
       elseif con isa OffsetCircleConstraint
         plot_circle_con!(con, p)
+      elseif con isa EllipseConstraint
+        plot_ellipse_con!(con, p)
       end
     end
     @show size(X)
@@ -105,8 +118,6 @@ function loop_for_display()
     # circle!(his_x_f[end], his_y_f[end], r, p)
     scatter!(p, his_x, his_y)
     scatter!(p, his_x_f, his_y_f)
-    ellipse!(9.0, 1.0, 3.0, 1.0, deg2rad(30.0), p)
-    ellipse!(8.0, 1.0, 3.0, 1.0, deg2rad(10.0), p)
     # savefig(p, "pics/$(i)_haha.png")
     display(p)
     readline()

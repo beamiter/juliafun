@@ -1,3 +1,100 @@
+struct EllipseConstraint{P,T} <: StageConstraint
+  n::Int
+  m::Int
+  x::SVector{P,T}
+  y::SVector{P,T}
+  a::SVector{P,T}
+  b::SVector{P,T}
+  θ::SVector{P,T}
+  inds::SVector{2,Int}
+  function EllipseConstraint{P,T}(n::Int, m::Int, xc::AbstractVector, yc::AbstractVector,
+    a::AbstractVector, b::AbstractVector, θ::AbstractVector,
+    inds=1:2) where {P,T}
+    @assert length(xc) == length(yc) == length(a) == length(b) == length(θ)
+    "Length of xc, yc, a, b, θ should be equal"
+    new{P,T}(n, m, xc, yc, a, b, θ, inds)
+  end
+end
+
+function EllipseConstraint(n::Int, m::Int, xc::AbstractVector, yc::AbstractVector,
+  a::AbstractVector, b::AbstractVector, θ::AbstractVector, inds=1:2)
+  T = promote_type(eltype(xc), eltype(yc), eltype(θ))
+  P = length(xc)
+  EllipseConstraint{P,T}(n, m, xc, yc, a, b, θ, inds)
+end
+
+@inline TO.sense(::EllipseConstraint) = Inequality()
+@inline RD.state_dim(con::EllipseConstraint) = con.n
+@inline RD.control_dim(con::EllipseConstraint) = con.m
+@inline RD.output_dim(::EllipseConstraint{P}) where {P} = P
+@inline RD.functioninputs(::EllipseConstraint) = RD.StateOnly()
+
+function RD.evaluate(con::EllipseConstraint{P}, X::RD.DataVector) where {P}
+  xc = con.x
+  yc = con.y
+  a = con.a
+  b = con.b
+  θ = con.θ
+  c = zeros(P)
+  xi, yi = con.inds
+  x = X[xi]
+  y = X[yi]
+  for i in 1:P
+    sn, cn = sincos(θ[i])
+    h = xc[i]
+    k = yc[i]
+    x′ = cn * x + sn * y - cn * h - sn * k
+    y′ = -sn * x + cn * y + sn * h - cn * k
+    c[i] = -(x′ / a[i])^2 - (y′ / b[i])^2 + 1
+  end
+  c
+end
+function RD.evaluate!(con::EllipseConstraint{P}, c, X::RD.DataVector) where {P}
+  xc = con.x
+  yc = con.y
+  a = con.a
+  b = con.b
+  θ = con.θ
+  xi, yi = con.inds
+  x = X[xi]
+  y = X[yi]
+  for i in 1:P
+    sn, cn = sincos(θ[i])
+    h = xc[i]
+    k = yc[i]
+    x′ = cn * x + sn * y - cn * h - sn * k
+    y′ = -sn * x + cn * y + sn * h - cn * k
+    c[i] = -(x′ / a[i])^2 - (y′ / b[i])^2 + 1
+  end
+  return nothing
+end
+
+function RD.jacobian!(con::EllipseConstraint{P}, ∇c, c, z::RD.AbstractKnotPoint) where {P}
+  X = RD.state(z)
+  xc = con.x
+  yc = con.y
+  a = con.a
+  b = con.b
+  θ = con.θ
+  xi, yi = con.inds
+  x = X[xi]
+  y = X[yi]
+  for i = 1:P
+    sn, cn = sincos(θ[i])
+    h = xc[i]
+    k = yc[i]
+    x′ = cn * x + sn * y - cn * h - sn * k
+    y′ = -sn * x + cn * y + sn * h - cn * k
+    dxx = cn
+    dxy = sn
+    dyx = -sn
+    dyy = cn
+    ∇c[i, xi] = -2 * (x′ / a[i]) * dxx - 2 * (y′ / b[i]) * dyx
+    ∇c[i, yi] = -2 * (x′ / a[i]) * dxy - 2 * (y′ / b[i]) * dyy
+  end
+  return nothing
+end
+
 #####################################################
 struct OffsetCircleConstraint{P,T} <: StageConstraint
   n::Int
