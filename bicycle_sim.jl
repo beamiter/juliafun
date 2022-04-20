@@ -21,7 +21,8 @@ end
 
 # (h, k): new center point, a: semimajor axes length, b: semiminor axes length,
 # ψ: rotation angle
-function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, plt::P) where {P}
+function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, plt::P;
+  alpha=1.0) where {P}
   theta = (0.0:0.1:2*pi+0.1)
   s, c = sincos(ψ)
   xt = t -> cos(t)
@@ -38,7 +39,7 @@ function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, p
   points[:, 1] .+= h
   points[:, 2] .+= k
   points = vcat(points, points[1, :]')
-  plot!(plt, points[:, 1], points[:, 2])
+  plot!(plt, points[:, 1], points[:, 2], alpha=alpha)
   # @testset "ellipse" begin
   #   f = (x, y) -> (x / a)^2 + (y / b)^2
   #   for i in theta
@@ -51,22 +52,22 @@ function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, p
   #     @test f(x′, y′) ≈ 1.0
   #   end
   # end
-  plot!(plt, [fx(i) for i in theta], [fy(i) for i in theta])
+  plot!(plt, [fx(i) for i in theta], [fy(i) for i in theta], alpha=alpha)
   # X, Y = [a * cos(i) for i in theta], [b * sin(i) for i in theta]
   # plot!(plt, c .* X .- s .* Y .+ x, s .* X .+ c .* Y .+ y)
 end
 
-function plot_ellipse_con!(c::C, plt::P) where {C<:Union{EllipseConstraint,OffsetEllipseConstraint},P}
+function plot_ellipse_con!(c::C, plt::P; alpha=1.0) where {C<:Union{EllipseConstraint,OffsetEllipseConstraint},P}
   for i in 1:RD.output_dim(c)
     h = c.x[i]
     k = c.y[i]
     a = c.a[i]
     b = c.b[i]
     ψ = c.ψ[i]
-    ellipse!(h, k, a, b, ψ, plt)
+    ellipse!(h, k, a, b, ψ, plt, alpha=alpha)
     half_width = 1.0
     if b > half_width
-      ellipse!(h, k, a - half_width, b - half_width, ψ, plt)
+      # ellipse!(h, k, a - half_width, b - half_width, ψ, plt)
     end
   end
 end
@@ -103,12 +104,13 @@ function loop_for_display()
     solver = ALTROSolver(bicycle...)
     solve!(solver)
     X = states(solver)
-    U = controls(solver)
     p = plot(plt, [x[1] for x in X], [x[2] for x in X])
     cons = get_constraints(bicycle[1])
     l = 2.0
+    current0 = true
+    current1 = true
     for con in cons
-      @show typeof(con)
+      # @show typeof(con)
       if con isa LinearConstraint
       elseif con isa BoundConstraint
       elseif con isa CircleConstraint
@@ -118,13 +120,21 @@ function loop_for_display()
       elseif con isa OffsetCircleConstraint
         plot_circle_con!(con, p)
       elseif con isa EllipseConstraint
-        plot_ellipse_con!(con, p)
+        if current0
+          plot_ellipse_con!(con, p)
+        else
+          plot_ellipse_con!(con, p, alpha=0.2)
+        end
+        current0 = false
       elseif con isa OffsetEllipseConstraint
-        plot_ellipse_con!(con, p)
+        if current1
+          plot_ellipse_con!(con, p)
+        else
+          plot_ellipse_con!(con, p, alpha=0.2)
+        end
+        current1 = false
       end
     end
-    @show size(X)
-    @show size(U)
     push!(his_x, x0[1])
     push!(his_y, x0[2])
     push!(his_x_f, x0[1] + l * cos(x0[3]))
