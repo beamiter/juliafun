@@ -51,18 +51,19 @@ end
 RD.state_dim(::MyBicycleModel) = 6
 RD.control_dim(::MyBicycleModel) = 2
 
-function BicycleCar(scenario=:parallel_park, ; N=51, x0, xf)
-  if scenario == :parallel_park
-  end
-  model = MyBicycleModel(; ref=:cg)
-  n, m = size(model)
+function BicycleCar(ref=:cg, ; N=51, x0, xf, tf, i=1)
+  # 1. define model dynamics
+  model = MyBicycleModel(; ref=ref)
 
+  # 2. define solver options
   opts = SolverOptions(penalty_initial=1e4, verbose=0,
     cost_tolerance_intermediate=1e-1)
 
-  tf = 5.0
-  #dt = tf / (N - 1)
+  # 3. define constraints
+  n, m = size(model)
+  cons = generate_constraints(n, m, N, tf, xf, i = i)
 
+  # 4. define Q, R matrix
   # x, y, theta, delta, v, a
   Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
   # jerk, phi
@@ -71,63 +72,11 @@ function BicycleCar(scenario=:parallel_park, ; N=51, x0, xf)
   Qf = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
   obj = LQRObjective(Q, R, Qf, xf, N)
 
-  cons = ConstraintList(n, m, N)
-  bnd_x_l = [-1, -2.4, Inf, -deg2rad(45), 0.0, -3]
-  bnd_x_u = [20, 2.4, Inf, deg2rad(45), 6.0, 3]
-  bnd_u_l = [-3, -deg2rad(45)]
-  bnd_u_u = [3, deg2rad(45)]
 
-  bnd = BoundConstraint(n, m, x_min=bnd_x_l, x_max=bnd_x_u, u_min=bnd_u_l,
-    u_max=bnd_u_u)
-
-  p = 2
-  A = zeros(p, m + n)
-  A[1, 5] = 1.0
-  A[2, 5] = -1.0
-  A = SMatrix{p,m + n,Float64}(A)
-  b = zeros(p)
-  b[1] = 4.0
-  b[2] = -0.01
-  b = SVector{p,Float64}(b)
-  lin = LinearConstraint(n, m, A, b, Inequality())
-
-  xc = SA[6.0]
-  yc = SA[1.0]
-  a = SA[3.0]
-  b = SA[1.0]
-  θ = SA[deg2rad(150.0)]
-  elli = EllipseConstraint(n, m, xc, yc, a, b, θ)
-
-  l = 2.0
-  off_elli = OffsetEllipseConstraint(n, m, xc, yc, a, b, θ, l)
-
-  xc = SA[7]
-  yc = SA[0.5]
-  r = SA[1.0]
-  cir = CircleConstraint(n, xc, yc, r)
-
-  l = 2.0
-  off_cir = OffsetCircleConstraint(n, m, xc, yc, r, l)
-
-  goal = GoalConstraint(xf)
-
-  p = 1
-  A = zeros(p, 2)
-  b = zeros(p)
-  A[2] = -1.0
-  b[1] = 2.4
-  off_lin = OffsetLinearConstraint(n, m, A, b, Inequality(), l)
-
-  # add_constraint!(cons, goal, N)
-  add_constraint!(cons, bnd, 1:N-1)
-  add_constraint!(cons, lin, 2:N)
-  # add_constraint!(cons, cir, 1:N)
-  # add_constraint!(cons, off_lin, 1:N)
-  # add_constraint!(cons, off_cir, 1:N)
-  # add_constraint!(cons, elli, 1:N)
-  add_constraint!(cons, off_elli, 1:N)
-
+  # 5. define problem
   prob = Problem(model, obj, x0, tf, xf=xf, constraints=cons)
+
+  # 6. init, can use warm start here
   initial_controls!(prob, SA[0.0, 0.0])
   rollout!(prob)
 

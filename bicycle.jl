@@ -14,6 +14,7 @@ using Plots: plot, plot!
 
 include("bicycle_model.jl")
 include("bicycle_constraints.jl")
+include("constraints_sampler.jl")
 include("bicycle_sim.jl")
 
 ## CairoMakie demo
