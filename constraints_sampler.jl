@@ -33,7 +33,6 @@ function generate_constraints(n, m, N, tf, xf; i::Int=1)
   # add_constraint!(cons, off_lin, 1:N)
 
   ######## ellipse constraint
-  p = 1
   dt = tf / (N - 1)
   dist = 15.0 - (i - 1) * 2.0 * dt
   l = 2.0
@@ -46,8 +45,8 @@ function generate_constraints(n, m, N, tf, xf; i::Int=1)
     elli = EllipseConstraint(n, m, xc, yc, a, b, ψ)
     add_constraint!(cons, elli, j:j)
     dist -= 2.0 * dt
-    # off_elli = OffsetEllipseConstraint(n, m, xc, yc, a, b, ψ, l)
-    # add_constraint!(cons, off_elli, 1:N)
+    off_elli = OffsetEllipseConstraint(n, m, xc, yc, a, b, ψ, l)
+    add_constraint!(cons, off_elli, j:j)
   end
 
   ######## circle constraint
