@@ -55,14 +55,7 @@ function ellipse!(
   points[:, 1] .+= h
   points[:, 2] .+= k
   points = vcat(points, points[1, :]')
-  plot!(
-    plt,
-    points[:, 1],
-    points[:, 2],
-    alpha = alpha,
-    color = color,
-    linewidth = linewidth,
-  )
+  plot!(plt, points[:, 1], points[:, 2], alpha = alpha, color = color, linewidth = linewidth)
   # @testset "ellipse" begin
   #   f = (x, y) -> (x / a)^2 + (y / b)^2
   #   for i in theta
@@ -113,10 +106,7 @@ function circle!(x::Float64, y::Float64, r::Float64, plt::P) where {P}
   plot!(plt, [r * cos(i) + x for i in theta], [r * sin(i) + y for i in theta])
 end
 
-function plot_circle_con!(
-  c::C,
-  plt::P,
-) where {C<:Union{CircleConstraint,OffsetCircleConstraint},P}
+function plot_circle_con!(c::C, plt::P) where {C<:Union{CircleConstraint,OffsetCircleConstraint},P}
   for i = 1:RD.output_dim(c)
     x = c.x[i]
     y = c.y[i]
@@ -128,7 +118,9 @@ end
 function loop_for_display()
   gr()
   x0 = SA_F64[0, 0, 0, 0, 4, 0]
-  xf = SA[15, -1.2, deg2rad(0), 0, 1.0, 0]
+  xf = SA[15, -1.0, deg2rad(0), 0, 1.0, 0]
+  tf = 5.0
+  N = 51
   plt = plot([0, 20], [-2.4, -2.4], aspect_ratio = :equal)
   plot!(plt, [0, 20], [-2.0, -2.0])
   plot!(plt, [0, 20], [2.4, 2.4])
@@ -137,19 +129,38 @@ function loop_for_display()
   his_y = []
   his_x_f = []
   his_y_f = []
+  warm_up = true
   for i in UnitRange(1, 40)
     @show x0
-    bicycle = BicycleCar(:cg, x0 = x0, xf = xf, tf = 5.0, i = i)
+    p = plot(plt)
+
+    bicycle = BicycleCar(x0, xf, N, tf)
+    n, m = 6, 2
+    cons = generate_constraints(n, m, N, tf, xf, i = i)
+    if warm_up
+      # 1. use ilqr to warm up
+      solver = Altro.iLQRSolver(bicycle..., use_static = Val(true))
+      solve!(solver)
+      X = states(solver)
+      plot!(
+        p,
+        [x[1] for x in X],
+        [x[2] for x in X],
+        linewidth = 3,
+        linestyle = :dashdotdot,
+        color = :blue,
+      )
+      # 2. warm up
+      bicycle = BicycleCar(x0, xf, N, tf, cons, X0 = states(solver), U0 = controls(solver))
+    else
+      bicycle = BicycleCar(x0, xf, N, tf, cons)
+    end
+    # 3. use altro to solve
     solver = ALTROSolver(bicycle...)
     solve!(solver)
+
     X = states(solver)
-    p = plot(
-      plt,
-      [x[1] for x in X],
-      [x[2] for x in X],
-      linewidth = 3,
-      color = :cyan,
-    )
+    plot!(p, [x[1] for x in X], [x[2] for x in X], linewidth = 2, color = :cyan)
     cons = get_constraints(bicycle[1])
     l = 2.0
     current0 = true
@@ -188,8 +199,8 @@ function loop_for_display()
     r = 1.0
     circle!(his_x[end], his_y[end], r, p)
     circle!(his_x_f[end], his_y_f[end], r, p)
-    scatter!(p, his_x, his_y)
-    scatter!(p, his_x_f, his_y_f)
+    scatter!(p, his_x, his_y, markersize = 2)
+    scatter!(p, his_x_f, his_y_f, markersize = 2)
     # savefig(p, "pics/$(i)_haha.png")
     display(p)
     readline()

@@ -3,7 +3,7 @@ RD.@autodiff struct MyBicycleModel <: RD.ContinuousDynamics
   ref::Symbol
   L::Float64
   lr::Float64
-  function MyBicycleModel(; ref::Symbol=:rear, L::Real=2.7, lr::Real=1.5)
+  function MyBicycleModel(; ref::Symbol = :rear, L::Real = 2.7, lr::Real = 1.5)
     @assert ref ∈ (:cg, :front, :rear)
     @assert L > 0 "($L) must be greater than 0"
     @assert L > lr "($L) must be greater than ($lr)"
@@ -51,19 +51,14 @@ end
 RD.state_dim(::MyBicycleModel) = 6
 RD.control_dim(::MyBicycleModel) = 2
 
-function BicycleCar(ref=:cg, ; N=51, x0, xf, tf, i=1)
+function BicycleCar(x0, xf, N, tf, ; ref = :cg, U0 = SA_F64[0, 0])
   # 1. define model dynamics
-  model = MyBicycleModel(; ref=ref)
+  model = MyBicycleModel(; ref = ref)
 
   # 2. define solver options
-  opts = SolverOptions(penalty_initial=1e4, verbose=0,
-    cost_tolerance_intermediate=1e-1)
+  opts = SolverOptions(penalty_initial = 1e4, verbose = 0, cost_tolerance_intermediate = 1e-1)
 
-  # 3. define constraints
-  n, m = size(model)
-  cons = generate_constraints(n, m, N, tf, xf, i = i)
-
-  # 4. define Q, R matrix
+  # 3. define Q, R matrix
   # x, y, theta, delta, v, a
   Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
   # jerk, phi
@@ -73,12 +68,50 @@ function BicycleCar(ref=:cg, ; N=51, x0, xf, tf, i=1)
   obj = LQRObjective(Q, R, Qf, xf, N)
 
 
-  # 5. define problem
-  prob = Problem(model, obj, x0, tf, xf=xf, constraints=cons)
+  # 4. define problem
+  prob = Problem(model, obj, x0, tf, xf = xf)
 
-  # 6. init, can use warm start here
-  initial_controls!(prob, SA[0.0, 0.0])
+  # 5. init, can use warm start here
+  initial_controls!(prob, U0)
   rollout!(prob)
+
+  return prob, opts
+end
+
+function BicycleCar(
+  x0,
+  xf,
+  N,
+  tf,
+  cons::ConstraintList,
+  ;
+  ref = :cg,
+  X0 = SA_F64[0, 0, 0, 0, 0, 0],
+  U0 = SA_F64[0, 0],
+)
+  # 1. define model dynamics
+  model = MyBicycleModel(; ref = ref)
+
+  # 2. define solver options
+  opts = SolverOptions(penalty_initial = 1e4, verbose = 0, cost_tolerance_intermediate = 1e-1)
+
+  # 3. define Q, R matrix
+  # x, y, theta, delta, v, a
+  Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
+  # jerk, phi
+  ρ = 1.0
+  R = ρ * Diagonal(SA_F64[1, 1])
+  Qf = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
+  obj = LQRObjective(Q, R, Qf, xf, N)
+
+
+  # 4. define problem
+  prob = Problem(model, obj, x0, tf, xf = xf, constraints = cons)
+
+  # 5. init, can use warm start here
+  initial_controls!(prob, U0)
+  initial_states!(prob, X0)
+  # rollout!(prob)
 
   return prob, opts
 end
