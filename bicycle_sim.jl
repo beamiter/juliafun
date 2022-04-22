@@ -124,6 +124,11 @@ function loop_for_display()
   plt = plot([0, 20], [-2.4, -2.4], aspect_ratio = :equal)
   plot!(plt, [0, 20], [-2.0, -2.0])
   plot!(plt, [0, 20], [2.4, 2.4])
+  line_segments_x = Vector{Float64}([0.0, 5.0, 10.0, 15.0])
+  line_segments_y = Vector{Float64}([1.2, 1.2, 0.0, 0.0])
+  @assert length(line_segments_x) == length(line_segments_y) "x, y length should be equal"
+  line_segments = collect(zip(line_segments_x, line_segments_y))
+  plot!(plt, line_segments_x, line_segments_y)
   scatter!(plt, [xf[1]], [xf[2]], marker_size = 2, shape = :star5)
   his_x = []
   his_y = []
@@ -134,11 +139,11 @@ function loop_for_display()
     @show x0
     p = plot(plt)
 
-    bicycle = BicycleCar(x0, xf, N, tf)
-    n, m = 6, 2
-    cons = generate_constraints(n, m, N, tf, xf, i = i)
+    X0 = SA_F64[]
+    U0 = SA_F64[0, 0]
     if warm_up
       # 1. use ilqr to warm up
+      bicycle = BicycleCar(x0, xf, N, tf, i = i, constrained = false)
       solver = Altro.iLQRSolver(bicycle..., use_static = Val(true))
       solve!(solver)
       X = states(solver)
@@ -150,11 +155,21 @@ function loop_for_display()
         linestyle = :dashdotdot,
         color = :blue,
       )
+      line_segments_points = map(X) do x
+        local dis = []
+        local x0, y0 = x[1:2]
+        for (x1, y1) in line_segments[1:end-1]
+          push!(dis, hypot(x1 - x0, y1 - y0))
+        end
+        local id = argmin(dis)
+        append!([num for num in line_segments[id]], [num for num in line_segments[id+1]])
+      end
+      @show line_segments_points, size(line_segments_points)
       # 2. warm up
-      bicycle = BicycleCar(x0, xf, N, tf, cons, X0 = states(solver), U0 = controls(solver))
-    else
-      bicycle = BicycleCar(x0, xf, N, tf, cons)
+      X0 = states(solver)
+      U0 = controls(solver)
     end
+    bicycle = BicycleCar(x0, xf, N, tf, X0 = X0, U0 = U0, i = i, constrained = true)
     # 3. use altro to solve
     solver = ALTROSolver(bicycle...)
     solve!(solver)

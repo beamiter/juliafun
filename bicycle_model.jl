@@ -51,42 +51,16 @@ end
 RD.state_dim(::MyBicycleModel) = 6
 RD.control_dim(::MyBicycleModel) = 2
 
-function BicycleCar(x0, xf, N, tf, ; ref = :cg, U0 = SA_F64[0, 0])
-  # 1. define model dynamics
-  model = MyBicycleModel(; ref = ref)
-
-  # 2. define solver options
-  opts = SolverOptions(penalty_initial = 1e4, verbose = 0, cost_tolerance_intermediate = 1e-1)
-
-  # 3. define Q, R matrix
-  # x, y, theta, delta, v, a
-  Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
-  # jerk, phi
-  ρ = 1.0
-  R = ρ * Diagonal(SA_F64[1, 1])
-  Qf = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
-  obj = LQRObjective(Q, R, Qf, xf, N)
-
-
-  # 4. define problem
-  prob = Problem(model, obj, x0, tf, xf = xf)
-
-  # 5. init, can use warm start here
-  initial_controls!(prob, U0)
-  rollout!(prob)
-
-  return prob, opts
-end
-
 function BicycleCar(
   x0,
   xf,
   N,
   tf,
-  cons::ConstraintList,
   ;
+  constrained,
+  i = 1,
   ref = :cg,
-  X0 = SA_F64[0, 0, 0, 0, 0, 0],
+  X0 = SA_F64[],
   U0 = SA_F64[0, 0],
 )
   # 1. define model dynamics
@@ -104,14 +78,23 @@ function BicycleCar(
   Qf = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
   obj = LQRObjective(Q, R, Qf, xf, N)
 
-
   # 4. define problem
-  prob = Problem(model, obj, x0, tf, xf = xf, constraints = cons)
+  if constrained
+    n, m = size(model)
+    cons = generate_constraints(n, m, N, tf, xf, i = i)
+    prob = Problem(model, obj, x0, tf, xf = xf, constraints = cons)
+  else
+    prob = Problem(model, obj, x0, tf, xf = xf)
+  end
 
   # 5. init, can use warm start here
   initial_controls!(prob, U0)
-  initial_states!(prob, X0)
-  # rollout!(prob)
+  if size(X0)[1] == N
+    @show size(X0)
+    initial_states!(prob, X0)
+  else
+    rollout!(prob)
+  end
 
   return prob, opts
 end
