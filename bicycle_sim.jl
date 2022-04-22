@@ -4,7 +4,7 @@ function loop_for_gif()
   plt = plot([0, 20, 20, 0, 0], 2.0 * [-1.2, -1.2, 1.2, 1.2, -1.2])
   anim = @animate for i in UnitRange(1, 40)
     @show x0
-    bicycle = BicycleCar(:cg, x0=x0, xf=xf, tf=5.0, i=i)
+    bicycle = BicycleCar(:cg, x0 = x0, xf = xf, tf = 5.0, i = i)
     solver = ALTROSolver(bicycle...)
     solve!(solver)
     X = states(solver)
@@ -16,13 +16,22 @@ function loop_for_gif()
     display(p)
     sleep(5)
   end
-  gif(anim, "anim_fps15.gif", fps=1)
+  gif(anim, "anim_fps15.gif", fps = 1)
 end
 
 # (h, k): new center point, a: semimajor axes length, b: semiminor axes length,
 # ψ: rotation angle
-function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, plt::P;
-  alpha=1.0, color=:red, linewidth=1.0) where {P}
+function ellipse!(
+  h::Float64,
+  k::Float64,
+  a::Float64,
+  b::Float64,
+  ψ::Float64,
+  plt::P;
+  alpha = 1.0,
+  color = :red,
+  linewidth = 1.0,
+) where {P}
   if a < 0.1 || b < 0.1
     return
   end
@@ -32,17 +41,28 @@ function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, p
   yt = t -> sin(t)
   fx = t -> c * a * xt(t) - s * b * yt(t) + h
   fy = t -> s * a * xt(t) + c * b * yt(t) + k
-  points = [2.5 1.0
+  points = [
+    2.5 1.0
     -2.5 1.0
     -2.5 -1.0
-    2.5 -1.0]
-  ma = [c -s
-    s c]
+    2.5 -1.0
+  ]
+  ma = [
+    c -s
+    s c
+  ]
   points = points * ma
   points[:, 1] .+= h
   points[:, 2] .+= k
   points = vcat(points, points[1, :]')
-  plot!(plt, points[:, 1], points[:, 2], alpha=alpha, color=color, linewidth=linewidth)
+  plot!(
+    plt,
+    points[:, 1],
+    points[:, 2],
+    alpha = alpha,
+    color = color,
+    linewidth = linewidth,
+  )
   # @testset "ellipse" begin
   #   f = (x, y) -> (x / a)^2 + (y / b)^2
   #   for i in theta
@@ -55,24 +75,35 @@ function ellipse!(h::Float64, k::Float64, a::Float64, b::Float64, ψ::Float64, p
   #     @test f(x′, y′) ≈ 1.0
   #   end
   # end
-  plot!(plt, [fx(i) for i in theta], [fy(i) for i in theta], alpha=alpha, color=color, linewidth=linewidth)
+  plot!(
+    plt,
+    [fx(i) for i in theta],
+    [fy(i) for i in theta],
+    alpha = alpha,
+    color = color,
+    linewidth = linewidth,
+  )
   # X, Y = [a * cos(i) for i in theta], [b * sin(i) for i in theta]
   # plot!(plt, c .* X .- s .* Y .+ x, s .* X .+ c .* Y .+ y)
 end
 
-function plot_ellipse_con!(c::C, plt::P; pred=false) where {C<:Union{EllipseConstraint,OffsetEllipseConstraint},P}
-  for i in 1:RD.output_dim(c)
+function plot_ellipse_con!(
+  c::C,
+  plt::P;
+  pred = false,
+) where {C<:Union{EllipseConstraint,OffsetEllipseConstraint},P}
+  for i = 1:RD.output_dim(c)
     h = c.x[i]
     k = c.y[i]
     a = c.a[i]
     b = c.b[i]
     ψ = c.ψ[i]
     if pred
-      ellipse!(h, k, a, b, ψ, plt, alpha=0.3, color=:burlywood)
-      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, alpha=0.3, color=:grey)
+      ellipse!(h, k, a, b, ψ, plt, alpha = 0.3, color = :burlywood)
+      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, alpha = 0.3, color = :grey)
     else
-      ellipse!(h, k, a, b, ψ, plt, linewidth=2.5)
-      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, linewidth=2.5)
+      ellipse!(h, k, a, b, ψ, plt, linewidth = 2.5)
+      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, linewidth = 2.5)
     end
   end
 end
@@ -82,8 +113,11 @@ function circle!(x::Float64, y::Float64, r::Float64, plt::P) where {P}
   plot!(plt, [r * cos(i) + x for i in theta], [r * sin(i) + y for i in theta])
 end
 
-function plot_circle_con!(c::C, plt::P) where {C<:Union{CircleConstraint,OffsetCircleConstraint},P}
-  for i in 1:RD.output_dim(c)
+function plot_circle_con!(
+  c::C,
+  plt::P,
+) where {C<:Union{CircleConstraint,OffsetCircleConstraint},P}
+  for i = 1:RD.output_dim(c)
     x = c.x[i]
     y = c.y[i]
     r = c.radius[i]
@@ -95,21 +129,27 @@ function loop_for_display()
   gr()
   x0 = SA_F64[0, 0, 0, 0, 4, 0]
   xf = SA[15, -1.2, deg2rad(0), 0, 1.0, 0]
-  plt = plot([0, 20], [-2.4, -2.4], aspect_ratio=:equal)
+  plt = plot([0, 20], [-2.4, -2.4], aspect_ratio = :equal)
   plot!(plt, [0, 20], [-2.0, -2.0])
   plot!(plt, [0, 20], [2.4, 2.4])
-  scatter!(plt, [xf[1]], [xf[2]], marker_size=2, shape=:star5)
+  scatter!(plt, [xf[1]], [xf[2]], marker_size = 2, shape = :star5)
   his_x = []
   his_y = []
   his_x_f = []
   his_y_f = []
   for i in UnitRange(1, 40)
     @show x0
-    bicycle = BicycleCar(:cg, x0=x0, xf=xf, tf=5.0, i=i)
+    bicycle = BicycleCar(:cg, x0 = x0, xf = xf, tf = 5.0, i = i)
     solver = ALTROSolver(bicycle...)
     solve!(solver)
     X = states(solver)
-    p = plot(plt, [x[1] for x in X], [x[2] for x in X], linewidth=3, color=:cyan)
+    p = plot(
+      plt,
+      [x[1] for x in X],
+      [x[2] for x in X],
+      linewidth = 3,
+      color = :cyan,
+    )
     cons = get_constraints(bicycle[1])
     l = 2.0
     current0 = true
@@ -135,7 +175,7 @@ function loop_for_display()
         if current1
           plot_ellipse_con!(con, p)
         else
-          plot_ellipse_con!(con, p, pred=true)
+          plot_ellipse_con!(con, p, pred = true)
         end
         current1 = false
       end
