@@ -1,15 +1,16 @@
 using Test
-import RobotZoo.Cartpole
 
 include("bicycle.jl")
 
 @testset "unit tests" begin
 
-  model = Cartpole()
+  model = MyBicycleModel()
   n, m = RD.dims(model)
-  x, u = rand(model)
-  t, h = 1.1, 0.1
+  x = zeros(n)
+  u = zeros(m)
+  t, h = 5, 0.1
   z = KnotPoint(x, u, t, h)
+  println("-----------------------\n")
 
   #################################################
 
@@ -20,6 +21,7 @@ include("bicycle.jl")
   @show RD.evaluate(lin, z)
   @show RD.output_dim(lin)
   @show typeof(lin)
+  println("-----------------------\n")
 
   #################################################
 
@@ -35,6 +37,7 @@ include("bicycle.jl")
   @show ∇c
   @show size(∇c)
   @show typeof(cir)
+  println("-----------------------\n")
 
   #################################################
 
@@ -50,6 +53,35 @@ include("bicycle.jl")
   @show ∇c
   @show size(∇c)
   @show typeof(off_cir)
+  println("-----------------------\n")
+
+  #################################################
+
+  points = [0 1.2 5 1.2 5;]
+  line_seg = LineSegmentConstraint(n, m, points, side=:lower)
+  @show RD.evaluate(line_seg, z)
+  @show RD.output_dim(line_seg)
+  c = zeros(RD.output_dim(line_seg))
+  RD.evaluate!(line_seg, c, z)
+  @test c ≈ RD.evaluate(line_seg, z)
+  ∇c = zeros(RD.output_dim(line_seg), n)
+  RD.jacobian!(line_seg, ∇c, c, z)
+  @show ∇c
+  @show typeof(line_seg)
+  println("-----------------------\n")
+
+  points = [0 -1.2 25 -1.2 25;]
+  line_seg = LineSegmentConstraint(n, m, points, side=:upper)
+  @show RD.evaluate(line_seg, z)
+  @show RD.output_dim(line_seg)
+  c = zeros(RD.output_dim(line_seg))
+  RD.evaluate!(line_seg, c, z)
+  @test c ≈ RD.evaluate(line_seg, z)
+  ∇c = zeros(RD.output_dim(line_seg), n)
+  RD.jacobian!(line_seg, ∇c, c, z)
+  @show ∇c
+  @show typeof(line_seg)
+  println("-----------------------\n")
 
   #################################################
 
@@ -66,8 +98,7 @@ include("bicycle.jl")
   RD.jacobian!(off_lin, ∇c, c, z)
   @show ∇c
   @show typeof(off_lin)
-  if off_lin isa OffsetLinearConstraint
-  end
+  println("-----------------------\n")
 
   #################################################
   p = 1
@@ -86,6 +117,7 @@ include("bicycle.jl")
   RD.jacobian!(elli, ∇c, c, z)
   @show ∇c
   @show typeof(elli)
+  println("-----------------------\n")
 
   #################################################
   p = 1
@@ -105,6 +137,7 @@ include("bicycle.jl")
   RD.jacobian!(off_elli, ∇c, c, z)
   @show ∇c
   @show typeof(off_elli)
+  println("-----------------------\n")
 
 end
 

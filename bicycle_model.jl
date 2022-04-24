@@ -62,6 +62,7 @@ function BicycleCar(
   ref = :cg,
   X0 = SA_F64[],
   U0 = SA_F64[0, 0],
+  line_segment_points = [],
 )
   # 1. define model dynamics
   model = MyBicycleModel(; ref = ref)
@@ -81,7 +82,7 @@ function BicycleCar(
   # 4. define problem
   if constrained
     n, m = size(model)
-    cons = generate_constraints(n, m, N, tf, xf, i = i)
+    cons = generate_constraints(n, m, N, tf, xf, i = i, line_segment_points = line_segment_points)
     prob = Problem(model, obj, x0, tf, xf = xf, constraints = cons)
   else
     prob = Problem(model, obj, x0, tf, xf = xf)

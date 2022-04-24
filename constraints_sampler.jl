@@ -1,4 +1,4 @@
-function generate_constraints(n, m, N, tf, xf; i::Int=1)
+function generate_constraints(n, m, N, tf, xf; i::Int = 1, line_segment_points = [])
   cons = ConstraintList(n, m, N)
 
   ######## bound constraint
@@ -6,9 +6,23 @@ function generate_constraints(n, m, N, tf, xf; i::Int=1)
   bnd_x_u = [20, 2.4, Inf, deg2rad(45), 6.0, 3]
   bnd_u_l = [-3, -deg2rad(45)]
   bnd_u_u = [3, deg2rad(45)]
-  bnd = BoundConstraint(n, m, x_min=bnd_x_l, x_max=bnd_x_u, u_min=bnd_u_l,
-    u_max=bnd_u_u)
+  bnd = BoundConstraint(n, m, x_min = bnd_x_l, x_max = bnd_x_u, u_min = bnd_u_l, u_max = bnd_u_u)
   add_constraint!(cons, bnd, 1:N-1)
+
+  ######## line segment constraint
+  if length(line_segment_points) > 0
+    @assert length(line_segment_points) == N
+    # @show line_segment_points
+    for (j, line_segment) in enumerate(line_segment_points)
+      line_segment = SMatrix{1,5}(line_segment)
+      line_seg = LineSegmentConstraint(n, m, line_segment, dist = 1.1)
+      add_constraint!(cons, line_seg, j)
+    end
+  end
+  points = [0 -2.4 25 -2.4 25;]
+  line_seg = LineSegmentConstraint(n, m, points, side = :upper)
+  add_constraint!(cons, line_seg, 1:N)
+
 
   ######## linear constraint
   p = 2
@@ -21,7 +35,7 @@ function generate_constraints(n, m, N, tf, xf; i::Int=1)
   b[2] = -0.01
   b = SVector{p,Float64}(b)
   lin = LinearConstraint(n, m, A, b, Inequality())
-  add_constraint!(cons, lin, 2:N)
+  # add_constraint!(cons, lin, 2:N)
 
   p = 2
   A = zeros(p, 2)
@@ -36,7 +50,7 @@ function generate_constraints(n, m, N, tf, xf; i::Int=1)
   dt = tf / (N - 1)
   dist = 15.0 - (i - 1) * 2.0 * dt
   l = 2.0
-  for j in 1:N
+  for j = 1:N
     xc = SA[dist]
     yc = SA[1.2]
     a = SA[4.0]
@@ -58,11 +72,11 @@ function generate_constraints(n, m, N, tf, xf; i::Int=1)
 
   l = 2.0
   off_cir = OffsetCircleConstraint(n, m, xc, yc, r, l)
+  # add_constraint!(cons, off_cir, 1:N)
 
   ######## goal constraint
   goal = GoalConstraint(xf)
   # add_constraint!(cons, goal, N)
-  # add_constraint!(cons, off_cir, 1:N)
 
   cons
 end

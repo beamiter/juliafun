@@ -80,6 +80,24 @@ function ellipse!(
   # plot!(plt, c .* X .- s .* Y .+ x, s .* X .+ c .* Y .+ y)
 end
 
+function plot_line_segment_con!(
+  c::C,
+  plt::P;
+  pred = false,
+) where {C<:Union{LineSegmentConstraint},P}
+  for i = 1:RD.output_dim(c)
+    x1 = c.points[i, 1]
+    y1 = c.points[i, 2]
+    x2 = c.points[i, 3]
+    y2 = c.points[i, 4]
+    if pred
+      plot!(plt, [x1, x2], [y1, y2], alpha = 0.3, color = :red)
+    else
+      plot!(plt, [x1, x2], [y1, y2], linewidth = 1.5, color = :red)
+    end
+  end
+end
+
 function plot_ellipse_con!(
   c::C,
   plt::P;
@@ -92,11 +110,11 @@ function plot_ellipse_con!(
     b = c.b[i]
     ψ = c.ψ[i]
     if pred
-      ellipse!(h, k, a, b, ψ, plt, alpha = 0.3, color = :burlywood)
-      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, alpha = 0.3, color = :grey)
+      ellipse!(h, k, a, b, ψ, plt, alpha = 0.3, color = :azure3)
+      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, alpha = 0.3, color = :azure3)
     else
-      ellipse!(h, k, a, b, ψ, plt, linewidth = 2.5)
-      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, linewidth = 2.5)
+      ellipse!(h, k, a, b, ψ, plt, linewidth = 1.5)
+      ellipse!(h, k, a - 1.0, b - 1.0, ψ, plt, linewidth = 1.5)
     end
   end
 end
@@ -121,9 +139,10 @@ function loop_for_display()
   xf = SA[15, -1.0, deg2rad(0), 0, 1.0, 0]
   tf = 5.0
   N = 51
-  plt = plot([0, 20], [-2.4, -2.4], aspect_ratio = :equal)
-  plot!(plt, [0, 20], [-2.0, -2.0])
-  plot!(plt, [0, 20], [2.4, 2.4])
+  plt = plot()
+  plot!(plt, [0, 20], [-2.4, -2.4], aspect_ratio = :equal, alpha = 0.4)
+  plot!(plt, [0, 20], [-2.0, -2.0], alpha = 0.4)
+  plot!(plt, [0, 20], [2.4, 2.4], aspect_ratio = :equal, alpha = 0.4)
   line_segments_x = Vector{Float64}([0.0, 5.0, 10.0, 15.0])
   line_segments_y = Vector{Float64}([1.2, 1.2, 0.0, 0.0])
   @assert length(line_segments_x) == length(line_segments_y) "x, y length should be equal"
@@ -141,6 +160,7 @@ function loop_for_display()
 
     X0 = SA_F64[]
     U0 = SA_F64[0, 0]
+    line_segment_points = []
     if warm_up
       # 1. use ilqr to warm up
       bicycle = BicycleCar(x0, xf, N, tf, i = i, constrained = false)
@@ -151,36 +171,48 @@ function loop_for_display()
         p,
         [x[1] for x in X],
         [x[2] for x in X],
-        linewidth = 3,
-        linestyle = :dashdotdot,
+        linewidth = 1.5,
+        linestyle = :dashdot,
         color = :blue,
       )
-      line_segments_points = map(X) do x
+      line_segment_points = map(X) do x
         local dis = []
         local x0, y0 = x[1:2]
         for (x1, y1) in line_segments[1:end-1]
           push!(dis, hypot(x1 - x0, y1 - y0))
         end
         local id = argmin(dis)
-        append!([num for num in line_segments[id]], [num for num in line_segments[id+1]])
+        x1, y1 = line_segments[id]
+        x2, y2 = line_segments[id+1]
+        len = hypot(x2 - x1, y2 - y1)
+        [x1, y1, x2, y2, len]
       end
-      @show line_segments_points, size(line_segments_points)
       # 2. warm up
       X0 = states(solver)
       U0 = controls(solver)
     end
-    bicycle = BicycleCar(x0, xf, N, tf, X0 = X0, U0 = U0, i = i, constrained = true)
+    bicycle = BicycleCar(
+      x0,
+      xf,
+      N,
+      tf,
+      X0 = X0,
+      U0 = U0,
+      i = i,
+      constrained = true,
+      line_segment_points = line_segment_points,
+    )
     # 3. use altro to solve
     solver = ALTROSolver(bicycle...)
     solve!(solver)
-
     X = states(solver)
-    plot!(p, [x[1] for x in X], [x[2] for x in X], linewidth = 2, color = :cyan)
-    cons = get_constraints(bicycle[1])
+    plot!(p, [x[1] for x in X], [x[2] for x in X], linewidth = 1.5, color = :green)
+
     l = 2.0
-    current0 = true
-    current1 = true
-    for con in cons
+    con_list = get_constraints(bicycle[1])
+    for (j, con) in enumerate(con_list.constraints)
+      ids = con_list.inds[j]
+      @assert length(ids) != 0
       # @show typeof(con)
       if con isa LinearConstraint
       elseif con isa BoundConstraint
@@ -191,19 +223,21 @@ function loop_for_display()
       elseif con isa OffsetCircleConstraint
         plot_circle_con!(con, p)
       elseif con isa EllipseConstraint
-        # if current0
-        #   plot_ellipse_con!(con, p)
-        # else
-        #   plot_ellipse_con!(con, p, alpha=0.2)
-        # end
-        # current0 = false
-      elseif con isa OffsetEllipseConstraint
-        if current1
+        if ids[1] == 1
           plot_ellipse_con!(con, p)
         else
           plot_ellipse_con!(con, p, pred = true)
         end
-        current1 = false
+      elseif con isa OffsetEllipseConstraint
+        if ids[1] == 1
+          plot_ellipse_con!(con, p)
+        else
+          plot_ellipse_con!(con, p, pred = true)
+        end
+      elseif con isa LineSegmentConstraint
+        if ids[1] == 1
+          plot_line_segment_con!(con, p)
+        end
       end
     end
     push!(his_x, x0[1])
