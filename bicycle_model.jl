@@ -62,7 +62,6 @@ function BicycleCar(
   ref = :cg,
   X0 = SA_F64[],
   U0 = SA_F64[0, 0],
-  line_segment_points = [],
 )
   # 1. define model dynamics
   model = MyBicycleModel(; ref = ref)
@@ -72,7 +71,7 @@ function BicycleCar(
 
   # 3. define Q, R matrix
   # x, y, theta, delta, v, a
-  Q = Diagonal(SA_F64[20, 20, 10, 1, 1, 1])
+  Q = Diagonal(SA_F64[10, 10, 50, 1, 1, 1])
   # jerk, phi
   ρ = 1.0
   R = ρ * Diagonal(SA_F64[1, 1])
@@ -82,7 +81,7 @@ function BicycleCar(
   # 4. define problem
   if constrained
     n, m = size(model)
-    cons = generate_constraints(n, m, N, tf, xf, i = i, line_segment_points = line_segment_points)
+    cons = generate_constraints(n, m, N, tf, xf, i = i, X0 = X0)
     prob = Problem(model, obj, x0, tf, xf = xf, constraints = cons)
   else
     prob = Problem(model, obj, x0, tf, xf = xf)
@@ -93,6 +92,7 @@ function BicycleCar(
   if size(X0)[1] == N
     @show size(X0)
     initial_states!(prob, X0)
+    println("Use ilqr result to warm start")
   else
     rollout!(prob)
   end

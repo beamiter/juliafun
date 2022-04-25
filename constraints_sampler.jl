@@ -1,4 +1,53 @@
-function generate_constraints(n, m, N, tf, xf; i::Int = 1, line_segment_points = [])
+function get_line_segments_points(
+  line_segments_x::Vector{T},
+  line_segments_y::Vector{T},
+  X,
+  ;
+  l = 0.0,
+) where {T}
+  @assert length(line_segments_y) == length(line_segments_x)
+  seg_inds = map(X) do x
+    dis = []
+    x0, y0, θ = x[1:3]
+    x0 += l * cos(θ)
+    y0 += l * sin(θ)
+    for i = 1:(length(line_segments_x)-1)
+      x1 = line_segments_x[i]
+      y1 = line_segments_y[i]
+      push!(dis, (x1 - x0)^2 + (y1 - y0)^2)
+    end
+    @assert length(dis) == length(line_segments_x) - 1
+    argmin(dis)
+  end
+  @show seg_inds
+  line_segments_points = []
+  for (i, x) in enumerate(X)
+    x0, y0, θ = x[1:3]
+    x0 += l * cos(θ)
+    y0 += l * sin(θ)
+    id = seg_inds[i]
+    if id != 1 && id != length(X)
+      x_prev, y_prev = line_segments_x[id-1], line_segments_y[id-1]
+      x_cur, y_cur = line_segments_x[id], line_segments_y[id]
+      x_next, y_next = line_segments_x[id+1], line_segments_y[id+1]
+      x0_vec = (x0 - x_cur, y0 - y_cur)
+      prev_vec = (x_prev - x_cur, y_prev - y_cur)
+      next_vec = (x_next - x_cur, y_next - y_cur)
+      cosine1 = dot(x0_vec, prev_vec) / (prev_vec[1]^2 + prev_vec[2]^2)
+      cosine2 = dot(x0_vec, next_vec) / (next_vec[1]^2 + next_vec[2]^2)
+      if cosine1 > cosine2
+        id = id - 1
+      end
+    end
+    x_1, y_1 = line_segments_x[id], line_segments_y[id]
+    x_2, y_2 = line_segments_x[id+1], line_segments_y[id+1]
+    len = hypot(x_1 - x_2, y_1 - y_2)
+    push!(line_segments_points, [x_1, y_1, x_2, y_2, len])
+  end
+  line_segments_points
+end
+
+function generate_constraints(n, m, N, tf, xf; i::Int = 1, X0 = SA_F64[])
   cons = ConstraintList(n, m, N)
   l = 2.0
 
@@ -11,19 +60,25 @@ function generate_constraints(n, m, N, tf, xf; i::Int = 1, line_segment_points =
   add_constraint!(cons, bnd, 1:N-1)
 
   ######## line segment constraint
-  # if length(line_segment_points) > 0
-  #   @assert length(line_segment_points) == N
-  #   # @show line_segment_points
-  #   for (j, line_segment) in enumerate(line_segment_points)
-  #     line_segment = SMatrix{1,5}(line_segment)
-  #     line_seg = LineSegmentConstraint(n, m, line_segment, dist = 1.1)
-  #     add_constraint!(cons, line_seg, j)
-  #   end
-  # end
-  # points = [0 -2.4 25 -2.4 25;]
-  # line_seg = LineSegmentConstraint(n, m, points, side = :upper)
-  # add_constraint!(cons, line_seg, 1:N)
+  line_segments_x = Vector{Float64}([0.0, 5.0, 10.0, 15.0])
+  line_segments_y = Vector{Float64}([1.2, 1.2, 0.0, 0.0])
+  line_segment_points = get_line_segments_points(line_segments_x, line_segments_y, X0, l = 0)
+  if length(line_segment_points) > 0
+    @assert length(line_segment_points) == N
+    # @show line_segment_points
+    for (j, line_segment) in enumerate(line_segment_points)
+      line_segment = SMatrix{1,5}(line_segment)
+      line_seg = LineSegmentConstraint(n, m, line_segment, dist = 1.1)
+      add_constraint!(cons, line_seg, j)
+    end
+  end
+  points = [0 -2.4 25 -2.4 25;]
+  line_seg = LineSegmentConstraint(n, m, points, side = :upper)
+  add_constraint!(cons, line_seg, 1:N)
 
+  line_segments_x = Vector{Float64}([0.0, 5.0, 10.0, 15.0])
+  line_segments_y = Vector{Float64}([1.2, 1.2, 0.0, 0.0])
+  line_segment_points = get_line_segments_points(line_segments_x, line_segments_y, X0, l = l)
   if length(line_segment_points) > 0
     @assert length(line_segment_points) == N
     # @show line_segment_points
