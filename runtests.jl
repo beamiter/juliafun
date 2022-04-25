@@ -41,7 +41,7 @@ include("bicycle.jl")
 
   #################################################
 
-  l = 1.0
+  l = 2.0
   off_cir = OffsetCircleConstraint(n, m, xc, yc, r, l)
   @show RD.evaluate(off_cir, z)
   @show RD.output_dim(off_cir)
@@ -58,7 +58,7 @@ include("bicycle.jl")
   #################################################
 
   points = [0 1.2 5 1.2 5;]
-  line_seg = LineSegmentConstraint(n, m, points, side=:lower)
+  line_seg = LineSegmentConstraint(n, m, points, side = :lower)
   @show RD.evaluate(line_seg, z)
   @show RD.output_dim(line_seg)
   c = zeros(RD.output_dim(line_seg))
@@ -71,7 +71,7 @@ include("bicycle.jl")
   println("-----------------------\n")
 
   points = [0 -1.2 25 -1.2 25;]
-  line_seg = LineSegmentConstraint(n, m, points, side=:upper)
+  line_seg = LineSegmentConstraint(n, m, points, side = :upper)
   @show RD.evaluate(line_seg, z)
   @show RD.output_dim(line_seg)
   c = zeros(RD.output_dim(line_seg))
@@ -81,6 +81,34 @@ include("bicycle.jl")
   RD.jacobian!(line_seg, ∇c, c, z)
   @show ∇c
   @show typeof(line_seg)
+  println("-----------------------\n")
+
+  #################################################
+
+  points = [0 1.2 5 1.2 5;]
+  off_line_seg = OffsetLineSegmentConstraint(n, m, points, l, side = :lower)
+  @show RD.evaluate(off_line_seg, z)
+  @show RD.output_dim(off_line_seg)
+  c = zeros(RD.output_dim(off_line_seg))
+  RD.evaluate!(off_line_seg, c, z)
+  @test c ≈ RD.evaluate(off_line_seg, z)
+  ∇c = zeros(RD.output_dim(off_line_seg), n)
+  RD.jacobian!(off_line_seg, ∇c, c, z)
+  @show ∇c
+  @show typeof(off_line_seg)
+  println("-----------------------\n")
+
+  points = [0 -1.2 25 -1.2 25;]
+  off_line_seg = OffsetLineSegmentConstraint(n, m, points, l, side = :upper)
+  @show RD.evaluate(off_line_seg, z)
+  @show RD.output_dim(off_line_seg)
+  c = zeros(RD.output_dim(off_line_seg))
+  RD.evaluate!(off_line_seg, c, z)
+  @test c ≈ RD.evaluate(off_line_seg, z)
+  ∇c = zeros(RD.output_dim(off_line_seg), n)
+  RD.jacobian!(off_line_seg, ∇c, c, z)
+  @show ∇c
+  @show typeof(off_line_seg)
   println("-----------------------\n")
 
   #################################################

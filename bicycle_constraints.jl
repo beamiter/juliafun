@@ -325,6 +325,108 @@ function RD.jacobian!(con::OffsetCircleConstraint{P}, ∇c, c, z::RD.AbstractKno
   end
   return nothing
 end
+#########################################################
+struct OffsetLineSegmentConstraint{P,W,T} <: StageConstraint
+  n::Int
+  m::Int
+  points::SizedMatrix{P,W,T,2,Matrix{T}}
+  l::Float64
+  inds::SVector{3,Int}
+  dist::Float64
+  side::Symbol
+  function OffsetLineSegmentConstraint(
+    n::Int,
+    m::Int,
+    points::StaticMatrix{P,W,T},
+    l::Float64,
+    inds = 1:3;
+    dist::Float64 = 1.1,
+    side::Symbol = :lower,
+  ) where {P,W,T}
+    @assert size(points, 2) == W == 5 "Length of segment points coord error"
+    inds = SVector{3}(inds)
+    new{P,W,T}(n, m, points, l, inds, dist, side)
+  end
+end
+
+function OffsetLineSegmentConstraint(
+  n::Int,
+  m::Int,
+  points::AbstractMatrix,
+  l::Float64,
+  inds = 1:3;
+  dist = 1.0,
+  side = :lower,
+)
+  @assert size(points, 2) == 5 "Points coord size error"
+  @assert side == :lower || side == :upper
+  p, q = size(points)
+  T = promote_type(eltype(points))
+  points = SizedMatrix{p,q,T}(points)
+  OffsetLineSegmentConstraint(n, m, points, l, inds, dist = dist, side = side)
+end
+
+@inline TO.sense(::OffsetLineSegmentConstraint) = Inequality()
+@inline RD.output_dim(::OffsetLineSegmentConstraint{P}) where {P} = P
+@inline RD.state_dim(con::OffsetLineSegmentConstraint) = con.n
+@inline RD.control_dim(con::OffsetLineSegmentConstraint) = con.m
+RD.functioninputs(::OffsetLineSegmentConstraint) = RD.StateOnly()
+
+function RD.evaluate(con::OffsetLineSegmentConstraint, X::RD.DataVector)
+  x, y, θ = X[con.inds]
+  x0 = x + con.l * cos(θ)
+  y0 = y + con.l * sin(θ)
+  x1 = con.points[:, 1]
+  y1 = con.points[:, 2]
+  x2 = con.points[:, 3]
+  y2 = con.points[:, 4]
+  len = con.points[:, 5]
+  if con.side == :lower
+    @. ((x2 - x1) * (y0 - y1) - (y2 - y1) * (x0 - x1)) / len + con.dist
+  else
+    @. ((y2 - y1) * (x0 - x1) - (x2 - x1) * (y0 - y1)) / len + con.dist
+  end
+end
+
+function RD.evaluate!(con::OffsetLineSegmentConstraint{P}, c, X::RD.DataVector) where {P}
+  x, y, θ = X[con.inds]
+  x0 = x + con.l * cos(θ)
+  y0 = y + con.l * sin(θ)
+  for i = 1:P
+    x1 = con.points[i, 1]
+    y1 = con.points[i, 2]
+    x2 = con.points[i, 3]
+    y2 = con.points[i, 4]
+    len = con.points[i, 5]
+    if con.side == :lower
+      c[i] = ((x2 - x1) * (y0 - y1) - (y2 - y1) * (x0 - x1)) / len + con.dist
+    else
+      c[i] = ((y2 - y1) * (x0 - x1) - (x2 - x1) * (y0 - y1)) / len + con.dist
+    end
+  end
+  return nothing
+end
+
+function RD.jacobian!(con::OffsetLineSegmentConstraint{P}, ∇c, c, z::RD.AbstractKnotPoint) where {P}
+  l = con.l
+  θ = z[con.inds[end]]
+  x1 = con.points[:, 1]
+  y1 = con.points[:, 2]
+  x2 = con.points[:, 3]
+  y2 = con.points[:, 4]
+  len = con.points[:, 5]
+  if con.side == :lower
+    @. ∇c[:, 1] = (y1 - y2) / len
+    @. ∇c[:, 2] = (x2 - x1) / len
+    @. ∇c[:, 3] = l * ((x2 - x1) * cos(θ) + (y2 - y1) * sin(θ)) / len
+  else
+    @. ∇c[:, 1] = (y2 - y1) / len
+    @. ∇c[:, 2] = (x1 - x2) / len
+    @. ∇c[:, 3] = l * ((x1 - x2) * cos(θ) + (y1 - y2) * sin(θ)) / len
+  end
+
+  return nothing
+end
 
 #########################################################
 struct LineSegmentConstraint{P,W,T} <: StageConstraint

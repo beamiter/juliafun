@@ -1,5 +1,6 @@
 function generate_constraints(n, m, N, tf, xf; i::Int = 1, line_segment_points = [])
   cons = ConstraintList(n, m, N)
+  l = 2.0
 
   ######## bound constraint
   bnd_x_l = [-1, -2.4, Inf, -deg2rad(45), 0.0, -3]
@@ -10,19 +11,31 @@ function generate_constraints(n, m, N, tf, xf; i::Int = 1, line_segment_points =
   add_constraint!(cons, bnd, 1:N-1)
 
   ######## line segment constraint
+  # if length(line_segment_points) > 0
+  #   @assert length(line_segment_points) == N
+  #   # @show line_segment_points
+  #   for (j, line_segment) in enumerate(line_segment_points)
+  #     line_segment = SMatrix{1,5}(line_segment)
+  #     line_seg = LineSegmentConstraint(n, m, line_segment, dist = 1.1)
+  #     add_constraint!(cons, line_seg, j)
+  #   end
+  # end
+  # points = [0 -2.4 25 -2.4 25;]
+  # line_seg = LineSegmentConstraint(n, m, points, side = :upper)
+  # add_constraint!(cons, line_seg, 1:N)
+
   if length(line_segment_points) > 0
     @assert length(line_segment_points) == N
     # @show line_segment_points
     for (j, line_segment) in enumerate(line_segment_points)
       line_segment = SMatrix{1,5}(line_segment)
-      line_seg = LineSegmentConstraint(n, m, line_segment, dist = 1.1)
-      add_constraint!(cons, line_seg, j)
+      off_line_seg = OffsetLineSegmentConstraint(n, m, line_segment, l, dist = 1.1)
+      add_constraint!(cons, off_line_seg, j)
     end
   end
   points = [0 -2.4 25 -2.4 25;]
-  line_seg = LineSegmentConstraint(n, m, points, side = :upper)
-  add_constraint!(cons, line_seg, 1:N)
-
+  off_line_seg = OffsetLineSegmentConstraint(n, m, points, l, side = :upper, dist = 1.1)
+  add_constraint!(cons, off_line_seg, 1:N)
 
   ######## linear constraint
   p = 2
@@ -49,7 +62,6 @@ function generate_constraints(n, m, N, tf, xf; i::Int = 1, line_segment_points =
   ######## ellipse constraint
   dt = tf / (N - 1)
   dist = 15.0 - (i - 1) * 2.0 * dt
-  l = 2.0
   for j = 1:N
     xc = SA[dist]
     yc = SA[1.2]

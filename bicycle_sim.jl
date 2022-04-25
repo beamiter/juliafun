@@ -35,7 +35,7 @@ function ellipse!(
   if a < 0.1 || b < 0.1
     return
   end
-  theta = (0.0:0.1:2*pi+0.1)
+  theta = (0.0:0.1:(2 * pi + 0.1))
   s, c = sincos(ψ)
   xt = t -> cos(t)
   yt = t -> sin(t)
@@ -84,7 +84,7 @@ function plot_line_segment_con!(
   c::C,
   plt::P;
   pred = false,
-) where {C<:Union{LineSegmentConstraint},P}
+) where {C<:Union{LineSegmentConstraint, OffsetLineSegmentConstraint},P}
   for i = 1:RD.output_dim(c)
     x1 = c.points[i, 1]
     y1 = c.points[i, 2]
@@ -120,7 +120,7 @@ function plot_ellipse_con!(
 end
 
 function circle!(x::Float64, y::Float64, r::Float64, plt::P) where {P}
-  theta = (0.0:0.1:2*pi+0.1)
+  theta = (0.0:0.1:(2 * pi + 0.1))
   plot!(plt, [r * cos(i) + x for i in theta], [r * sin(i) + y for i in theta])
 end
 
@@ -142,7 +142,7 @@ function get_line_segments_points(
   seg_inds = map(X) do x
     local dis = []
     local x0, y0 = x[1:2]
-    for i = 1:(length(line_segments_x)-1)
+    for i = 1:(length(line_segments_x) - 1)
       x1 = line_segments_x[i]
       y1 = line_segments_y[i]
       push!(dis, (x1 - x0)^2 + (y1 - y0)^2)
@@ -155,20 +155,20 @@ function get_line_segments_points(
     x0, y0 = x[1:2]
     id = seg_inds[i]
     if id != 1 && id != length(X)
-      x_prev, y_prev = line_segments_x[id-1], line_segments_y[id-1]
+      x_prev, y_prev = line_segments_x[id - 1], line_segments_y[id - 1]
       x_cur, y_cur = line_segments_x[id], line_segments_y[id]
-      x_next, y_next = line_segments_x[id+1], line_segments_y[id+1]
+      x_next, y_next = line_segments_x[id + 1], line_segments_y[id + 1]
       x0_vec = (x0 - x_cur, y0 - y_cur)
       prev_vec = (x_prev - x_cur, y_prev - y_cur)
       next_vec = (x_next - x_cur, y_next - y_cur)
-      cosine1 = dot(x0_vec, prev_vec) / (prev_vec[1]^ 2 + prev_vec[2]^2)
-      cosine2 = dot(x0_vec, next_vec) / (next_vec[1]^ 2 + next_vec[2]^2)
+      cosine1 = dot(x0_vec, prev_vec) / (prev_vec[1]^2 + prev_vec[2]^2)
+      cosine2 = dot(x0_vec, next_vec) / (next_vec[1]^2 + next_vec[2]^2)
       if cosine1 > cosine2
         id = id - 1
       end
     end
     x_1, y_1 = line_segments_x[id], line_segments_y[id]
-    x_2, y_2 = line_segments_x[id+1], line_segments_y[id+1]
+    x_2, y_2 = line_segments_x[id + 1], line_segments_y[id + 1]
     len = hypot(x_1 - x_2, y_1 - y_2)
     push!(line_segments_points, [x_1, y_1, x_2, y_2, len])
   end
@@ -271,6 +271,10 @@ function loop_for_display()
           plot_ellipse_con!(con, p, pred = true)
         end
       elseif con isa LineSegmentConstraint
+        if ids[1] == 1
+          plot_line_segment_con!(con, p)
+        end
+      elseif con isa OffsetLineSegmentConstraint
         if ids[1] == 1
           plot_line_segment_con!(con, p)
         end

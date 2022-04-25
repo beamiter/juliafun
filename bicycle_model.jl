@@ -72,7 +72,7 @@ function BicycleCar(
 
   # 3. define Q, R matrix
   # x, y, theta, delta, v, a
-  Q = Diagonal(SA_F64[10, 10, 60, 1, 1, 1])
+  Q = Diagonal(SA_F64[20, 20, 10, 1, 1, 1])
   # jerk, phi
   ρ = 1.0
   R = ρ * Diagonal(SA_F64[1, 1])
