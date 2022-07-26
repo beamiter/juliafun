@@ -164,7 +164,7 @@ function loop_for_display()
     U0 = SA_F64[0, 0]
     if warm_up
       # 1. use ilqr to warm up
-      bicycle = BicycleCar(x0, xf, N, tf, i = i, constrained = false)
+      bicycle = BicycleCar(x0, xf, N, tf, i = i, constrained = false, ref=:cg)
       solver = Altro.iLQRSolver(bicycle..., use_static = Val(true))
       solve!(solver)
       # 2. warm up
